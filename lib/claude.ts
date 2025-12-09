@@ -8,11 +8,29 @@ export interface FormData {
   preferences: string[];
 }
 
+export interface WhereToBuy {
+  store: string;
+  price: string;
+  link?: string;
+}
+
 export interface RoutineStep {
   step: number;
   product: string;
   why: string;
   price: string;
+  howToUse: string;
+  amount: string;
+  application: string;
+  waitTime?: string;
+  whereToBuy?: WhereToBuy[];
+}
+
+export interface BeginnerGuide {
+  morningTime: string;
+  eveningTime: string;
+  tips: string[];
+  mistakes: string[];
 }
 
 export interface AnalysisResult {
@@ -20,6 +38,7 @@ export interface AnalysisResult {
   morning: RoutineStep[];
   evening: RoutineStep[];
   totalCost: string;
+  beginnerGuide?: BeginnerGuide;
 }
 
 const anthropic = new Anthropic({
@@ -57,13 +76,30 @@ INSTRUCTIONS:
    - MORNING: 3-4 steps (cleanser, treatment, moisturizer, SPF)
    - EVENING: 3-5 steps (cleanser, treatment/exfoliant, serum, moisturizer)
 
-4. For Black skin specifically:
+4. For EACH product, provide detailed usage instructions:
+   - **howToUse**: Complete instructions (e.g., "Apply to damp skin, massage in circular motions for 30 seconds, rinse thoroughly with lukewarm water")
+   - **amount**: Specific amount (e.g., "dime-sized amount", "2-3 drops", "pea-sized", "nickel-sized")
+   - **application**: How to apply (e.g., "gentle circular motions", "pat into skin", "press into face and neck", "smooth upward strokes")
+   - **waitTime**: If needed between steps (e.g., "Wait 60 seconds before next step", "Let absorb for 1-2 minutes")
+   - **whereToBuy**: List 2-3 best places to buy based on budget:
+     * $ budget: Amazon, Target, CVS, Walgreens, Walmart
+     * $$ budget: Ulta, Sephora, brand website, Dermstore
+     * $$$ budget: Sephora, Nordstrom, Dermstore, dermatologist office
+     * Include approximate prices at each retailer
+
+5. If user has NO current routine (currentRoutine is "Nothing really"), include a beginnerGuide section:
+   - **morningTime**: Total time estimate (e.g., "5 minutes total")
+   - **eveningTime**: Total time estimate (e.g., "7-10 minutes total")
+   - **tips**: 4-5 practical tips for beginners (e.g., "Always apply products to damp skin for better absorption", "Start with once daily and build up gradually")
+   - **mistakes**: 3-4 common mistakes to avoid (e.g., "Don't rub products in too hard", "Never skip sunscreen", "Don't use hot water on your face")
+
+6. For Black skin specifically:
    - Avoid products that cause ashy appearance
    - Recommend sunscreens without white cast
    - Address hyperpigmentation/dark spots if relevant
    - Focus on moisture retention
 
-5. Return ONLY a JSON object in this exact format:
+7. Return ONLY a JSON object in this exact format:
 {
   "analysis": "2-3 sentence skin analysis based on photo and answers",
   "morning": [
@@ -71,7 +107,15 @@ INSTRUCTIONS:
       "step": 1,
       "product": "Exact Product Name",
       "why": "Why this helps their specific concerns",
-      "price": "$XX"
+      "price": "$XX",
+      "howToUse": "Complete step-by-step instructions with water temperature, time, technique",
+      "amount": "Specific amount (dime-sized, 2-3 drops, etc.)",
+      "application": "How to apply (circular motions, pat in, etc.)",
+      "waitTime": "Optional - only if needed between steps",
+      "whereToBuy": [
+        {"store": "Amazon", "price": "$XX"},
+        {"store": "Target", "price": "$XX"}
+      ]
     }
   ],
   "evening": [
@@ -79,10 +123,32 @@ INSTRUCTIONS:
       "step": 1,
       "product": "Exact Product Name",
       "why": "Why this helps their specific concerns",
-      "price": "$XX"
+      "price": "$XX",
+      "howToUse": "Complete step-by-step instructions",
+      "amount": "Specific amount",
+      "application": "How to apply",
+      "waitTime": "Optional",
+      "whereToBuy": [
+        {"store": "Store Name", "price": "$XX"}
+      ]
     }
   ],
-  "totalCost": "$XXX (will last X months)"
+  "totalCost": "$XXX (will last X months)",
+  "beginnerGuide": {
+    "morningTime": "5 minutes total",
+    "eveningTime": "7-10 minutes total",
+    "tips": [
+      "Practical tip 1",
+      "Practical tip 2",
+      "Practical tip 3",
+      "Practical tip 4"
+    ],
+    "mistakes": [
+      "Common mistake to avoid 1",
+      "Common mistake to avoid 2",
+      "Common mistake to avoid 3"
+    ]
+  }
 }
 
 Be practical, specific, and focus on products that are widely available (drugstore + Sephora/Ulta).`;

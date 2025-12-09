@@ -44,11 +44,61 @@ const SkinCareApp = () => {
   const handleImageCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select a valid image file');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImage(reader.result as string);
-        setStep('questions');
+        const img = new Image();
+        img.onload = () => {
+          // Create canvas and convert to JPEG
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          if (!ctx) {
+            setError('Failed to process image');
+            return;
+          }
+
+          // Resize if too large (max 1920px on longest side)
+          const maxSize = 1920;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height / width) * maxSize;
+              width = maxSize;
+            } else {
+              width = (width / height) * maxSize;
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to JPEG with good quality
+          const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          setImage(jpegDataUrl);
+          setStep('questions');
+        };
+
+        img.onerror = () => {
+          setError('Failed to load image. Please try another file.');
+        };
+
+        img.src = reader.result as string;
       };
+
+      reader.onerror = () => {
+        setError('Failed to read image file');
+      };
+
       reader.readAsDataURL(file);
     }
   };
@@ -148,7 +198,10 @@ const SkinCareApp = () => {
             Get a personalized skincare routine in 60 seconds. Scan your face, answer a few questions, done.
           </p>
           <button
-            onClick={() => setStep('camera')}
+            onClick={() => {
+              setError(null);
+              setStep('camera');
+            }}
             className="w-full bg-indigo-600 text-white py-4 rounded-2xl text-lg font-semibold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
           >
             Start Analysis
@@ -167,7 +220,10 @@ const SkinCareApp = () => {
       <div className="min-h-screen bg-white flex flex-col">
         <div className="p-4">
           <button
-            onClick={() => setStep('welcome')}
+            onClick={() => {
+              setError(null);
+              setStep('welcome');
+            }}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-6 h-6 text-gray-700" />
@@ -180,12 +236,21 @@ const SkinCareApp = () => {
             <p className="text-gray-600">Clear photo of your face in good lighting</p>
           </div>
 
+          {error && (
+            <div className="w-full max-w-sm mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
           <div className="w-full max-w-sm">
             {image ? (
               <div className="relative">
                 <img src={image} alt="Preview" className="w-full rounded-3xl shadow-xl" />
                 <button
-                  onClick={() => setImage(null)}
+                  onClick={() => {
+                    setImage(null);
+                    setError(null);
+                  }}
                   className="absolute top-4 right-4 bg-white text-gray-700 px-4 py-2 rounded-full text-sm font-medium shadow-lg"
                 >
                   Retake
@@ -212,7 +277,10 @@ const SkinCareApp = () => {
 
           {image && (
             <button
-              onClick={() => setStep('questions')}
+              onClick={() => {
+                setError(null);
+                setStep('questions');
+              }}
               className="w-full max-w-sm mt-8 bg-indigo-600 text-white py-4 rounded-2xl text-lg font-semibold hover:bg-indigo-700 transition-colors shadow-lg"
             >
               Continue
@@ -229,7 +297,10 @@ const SkinCareApp = () => {
       <div className="min-h-screen bg-white">
         <div className="p-4 border-b border-gray-200">
           <button
-            onClick={() => setStep('camera')}
+            onClick={() => {
+              setError(null);
+              setStep('camera');
+            }}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-6 h-6 text-gray-700" />

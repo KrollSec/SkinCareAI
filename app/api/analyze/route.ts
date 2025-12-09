@@ -39,11 +39,28 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error analyzing skin:", error);
 
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    // Check if it's an Anthropic API error
+    if (error && typeof error === 'object' && 'status' in error) {
+      const apiError = error as { status?: number; message?: string };
+      const status = apiError.status || 500;
+      const message = apiError.message || "API request failed";
+
+      return NextResponse.json(
+        { error: `AI service error: ${message}` },
+        { status }
+      );
+    }
+
+    // Handle our custom errors
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+
+    // Return appropriate status code based on error type
+    const status = errorMessage.includes("Unsupported image format") ||
+                   errorMessage.includes("Invalid image") ? 400 : 500;
 
     return NextResponse.json(
-      { error: `Failed to analyze skin: ${errorMessage}` },
-      { status: 500 }
+      { error: errorMessage },
+      { status }
     );
   }
 }

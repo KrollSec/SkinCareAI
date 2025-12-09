@@ -88,6 +88,27 @@ INSTRUCTIONS:
 Be practical, specific, and focus on products that are widely available (drugstore + Sephora/Ulta).`;
 }
 
+function normalizeMediaType(rawMediaType: string): "image/jpeg" | "image/png" | "image/gif" | "image/webp" {
+  // Normalize to lowercase
+  const normalized = rawMediaType.toLowerCase().trim();
+
+  // Handle common variants
+  const mediaTypeMap: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
+    "image/jpg": "image/jpeg",
+    "image/jpeg": "image/jpeg",
+    "image/png": "image/png",
+    "image/gif": "image/gif",
+    "image/webp": "image/webp",
+  };
+
+  const mappedType = mediaTypeMap[normalized];
+  if (!mappedType) {
+    throw new Error(`Unsupported image format: ${rawMediaType}. Please use JPEG, PNG, GIF, or WebP.`);
+  }
+
+  return mappedType;
+}
+
 export async function analyzeSkin(
   imageBase64: string,
   formData: FormData
@@ -97,11 +118,14 @@ export async function analyzeSkin(
   // Extract the base64 data and media type
   const matches = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
   if (!matches) {
-    throw new Error("Invalid image format");
+    throw new Error("Invalid image format. Please make sure you're uploading a valid image file.");
   }
 
-  const mediaType = matches[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+  const rawMediaType = matches[1];
   const base64Data = matches[2];
+
+  // Normalize and validate the media type
+  const mediaType = normalizeMediaType(rawMediaType);
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",

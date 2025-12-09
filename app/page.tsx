@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Camera, Check, Copy, Download, ArrowLeft, Sparkles, Loader2, ShoppingBag, Info, Clock } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 
 interface FormData {
   gender: string;
@@ -203,64 +204,176 @@ const SkinCareApp = () => {
   const handleDownload = () => {
     if (!results) return;
 
-    let text = `SkinAI - Your Personalized Skincare Routine\n\n`;
-    text += `SKIN ANALYSIS:\n${results.analysis}\n\n`;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let y = 20;
 
-    // Add beginner's guide if available
+    // Helper function to check if we need a new page
+    const checkPageBreak = (neededSpace: number) => {
+      if (y + neededSpace > doc.internal.pageSize.getHeight() - 20) {
+        doc.addPage();
+        y = 20;
+        return true;
+      }
+      return false;
+    };
+
+    // Helper function to add wrapped text
+    const addText = (text: string, size: number, style: 'normal' | 'bold' = 'normal', color: number[] = [0, 0, 0]) => {
+      doc.setFontSize(size);
+      doc.setFont('helvetica', style);
+      doc.setTextColor(color[0], color[1], color[2]);
+      const lines = doc.splitTextToSize(text, contentWidth);
+      const lineHeight = size * 0.5;
+
+      checkPageBreak(lines.length * lineHeight);
+      doc.text(lines, margin, y);
+      y += lines.length * lineHeight;
+    };
+
+    // Header
+    addText('SkinAI', 24, 'bold', [79, 70, 229]);
+    y += 2;
+    addText('Your Personalized Skincare Routine', 16, 'normal', [100, 100, 100]);
+    y += 10;
+
+    // Skin Analysis
+    addText('SKIN ANALYSIS', 14, 'bold', [79, 70, 229]);
+    y += 2;
+    addText(results.analysis, 10, 'normal');
+    y += 8;
+
+    // Beginner's Guide (if available)
     if (results.beginnerGuide) {
-      text += `NEW TO SKINCARE? START HERE\n`;
-      text += `Morning Time: ${results.beginnerGuide.morningTime}\n`;
-      text += `Evening Time: ${results.beginnerGuide.eveningTime}\n\n`;
-      text += `PRO TIPS:\n${results.beginnerGuide.tips.map(tip => `• ${tip}`).join('\n')}\n\n`;
-      text += `AVOID THESE MISTAKES:\n${results.beginnerGuide.mistakes.map(mistake => `• ${mistake}`).join('\n')}\n\n`;
+      checkPageBreak(60);
+      addText('NEW TO SKINCARE? START HERE', 14, 'bold', [34, 197, 94]);
+      y += 2;
+
+      addText(`Morning: ${results.beginnerGuide.morningTime} | Evening: ${results.beginnerGuide.eveningTime}`, 10, 'bold');
+      y += 5;
+
+      addText('Pro Tips:', 11, 'bold');
+      y += 2;
+      results.beginnerGuide.tips.forEach(tip => {
+        addText(`• ${tip}`, 9, 'normal');
+        y += 1;
+      });
+      y += 3;
+
+      addText('Avoid These Mistakes:', 11, 'bold');
+      y += 2;
+      results.beginnerGuide.mistakes.forEach(mistake => {
+        addText(`• ${mistake}`, 9, 'normal');
+        y += 1;
+      });
+      y += 8;
     }
 
-    // Morning routine with full details
-    text += `MORNING ROUTINE:\n`;
-    text += results.morning.map(item => {
-      let itemText = `${item.step}. ${item.product} (${item.price})\n`;
-      itemText += `   Why: ${item.why}\n`;
-      itemText += `   Amount: ${item.amount}\n`;
-      itemText += `   How to Use: ${item.howToUse}\n`;
+    // Morning Routine
+    checkPageBreak(20);
+    addText('MORNING ROUTINE', 14, 'bold', [79, 70, 229]);
+    y += 4;
+
+    results.morning.forEach((item, index) => {
+      checkPageBreak(40);
+
+      // Product name and price
+      addText(`${item.step}. ${item.product} - ${item.price}`, 11, 'bold');
+      y += 1;
+
+      // Why
+      addText(`Why: ${item.why}`, 9, 'normal', [60, 60, 60]);
+      y += 2;
+
+      // Amount
+      addText(`Amount: ${item.amount}`, 9, 'normal', [60, 60, 60]);
+      y += 2;
+
+      // How to use
+      addText(`How to Use: ${item.howToUse}`, 9, 'normal', [60, 60, 60]);
+      y += 2;
+
+      // Wait time (if exists)
       if (item.waitTime) {
-        itemText += `   Wait Time: ${item.waitTime}\n`;
+        addText(`Wait Time: ${item.waitTime}`, 9, 'normal', [60, 60, 60]);
+        y += 2;
       }
-      if (item.whereToBuy && item.whereToBuy.length > 0) {
-        itemText += `   Where to Buy:\n`;
-        itemText += item.whereToBuy.map(store => `      • ${store.store}: ${store.price}`).join('\n');
-      }
-      return itemText;
-    }).join('\n\n');
 
-    // Evening routine with full details
-    text += `\n\nEVENING ROUTINE:\n`;
-    text += results.evening.map(item => {
-      let itemText = `${item.step}. ${item.product} (${item.price})\n`;
-      itemText += `   Why: ${item.why}\n`;
-      itemText += `   Amount: ${item.amount}\n`;
-      itemText += `   How to Use: ${item.howToUse}\n`;
+      // Where to buy (if exists)
+      if (item.whereToBuy && item.whereToBuy.length > 0) {
+        addText('Where to Buy:', 9, 'bold', [60, 60, 60]);
+        y += 1;
+        item.whereToBuy.forEach(store => {
+          addText(`  • ${store.store}: ${store.price}`, 8, 'normal', [80, 80, 80]);
+          y += 1;
+        });
+        y += 1;
+      }
+
+      y += 3;
+    });
+
+    // Evening Routine
+    y += 2;
+    checkPageBreak(20);
+    addText('EVENING ROUTINE', 14, 'bold', [147, 51, 234]);
+    y += 4;
+
+    results.evening.forEach((item, index) => {
+      checkPageBreak(40);
+
+      // Product name and price
+      addText(`${item.step}. ${item.product} - ${item.price}`, 11, 'bold');
+      y += 1;
+
+      // Why
+      addText(`Why: ${item.why}`, 9, 'normal', [60, 60, 60]);
+      y += 2;
+
+      // Amount
+      addText(`Amount: ${item.amount}`, 9, 'normal', [60, 60, 60]);
+      y += 2;
+
+      // How to use
+      addText(`How to Use: ${item.howToUse}`, 9, 'normal', [60, 60, 60]);
+      y += 2;
+
+      // Wait time (if exists)
       if (item.waitTime) {
-        itemText += `   Wait Time: ${item.waitTime}\n`;
+        addText(`Wait Time: ${item.waitTime}`, 9, 'normal', [60, 60, 60]);
+        y += 2;
       }
+
+      // Where to buy (if exists)
       if (item.whereToBuy && item.whereToBuy.length > 0) {
-        itemText += `   Where to Buy:\n`;
-        itemText += item.whereToBuy.map(store => `      • ${store.store}: ${store.price}`).join('\n');
+        addText('Where to Buy:', 9, 'bold', [60, 60, 60]);
+        y += 1;
+        item.whereToBuy.forEach(store => {
+          addText(`  • ${store.store}: ${store.price}`, 8, 'normal', [80, 80, 80]);
+          y += 1;
+        });
+        y += 1;
       }
-      return itemText;
-    }).join('\n\n');
 
-    text += `\n\nTOTAL INVESTMENT: ${results.totalCost}\n\n`;
-    text += `Generated by SkinAI - 100% private, no data stored.`;
+      y += 3;
+    });
 
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'my-skincare-routine.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Total Cost
+    y += 5;
+    checkPageBreak(15);
+    addText('TOTAL INVESTMENT', 12, 'bold', [79, 70, 229]);
+    y += 2;
+    addText(results.totalCost, 11, 'bold');
+    y += 10;
+
+    // Footer
+    checkPageBreak(10);
+    addText('Generated by SkinAI - 100% private, no data stored', 8, 'normal', [150, 150, 150]);
+
+    // Save the PDF
+    doc.save('my-skincare-routine.pdf');
   };
 
   // Welcome Screen
@@ -770,7 +883,7 @@ const SkinCareApp = () => {
               className="flex items-center justify-center gap-2 bg-indigo-600 text-white py-4 rounded-2xl font-semibold hover:bg-indigo-700 transition-colors shadow-lg"
             >
               <Download className="w-5 h-5" />
-              Download
+              Download PDF
             </button>
           </div>
         </div>
